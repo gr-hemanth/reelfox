@@ -29,8 +29,8 @@ except ImportError:  # pragma: no cover - dependency is optional at runtime
 BASE_DIR = Path(__file__).resolve().parent
 
 PROJECT_NAME = "Instagram Content Analyzer"
-PHASE = "Authenticated Extraction Experiment"
-PHASE_NUMBER = 4
+PHASE = "Audio / Speech Understanding"
+PHASE_NUMBER = 5
 
 VALID_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
@@ -45,6 +45,10 @@ _DEFAULTS = {
     "EXTRACTION_MODE": "public",
     "COOKIES_FROM_BROWSER": "",
     "COOKIE_FILE": "",
+    # Phase 5 ASR defaults.
+    "ASR_MODEL_SIZE": "base",
+    "ASR_DEVICE": "cpu",
+    "ASR_COMPUTE_TYPE": "int8",
 }
 
 
@@ -83,6 +87,11 @@ class Config:
     # Path only; the cookie file's contents are never read or stored here.
     cookie_file: str = ""
 
+    # Phase 5 ASR configuration.
+    asr_model_size: str = _DEFAULTS["ASR_MODEL_SIZE"]
+    asr_device: str = _DEFAULTS["ASR_DEVICE"]
+    asr_compute_type: str = _DEFAULTS["ASR_COMPUTE_TYPE"]
+
     # Placeholders for later phases. Empty string means "not configured".
     anthropic_api_key: str = ""
     openai_api_key: str = ""
@@ -111,6 +120,9 @@ class Config:
             extraction_mode=extraction_mode,
             cookies_from_browser=os.environ.get("COOKIES_FROM_BROWSER", "").strip(),
             cookie_file=cookie_file,
+            asr_model_size=_env("ASR_MODEL_SIZE").lower(),
+            asr_device=_env("ASR_DEVICE").lower(),
+            asr_compute_type=_env("ASR_COMPUTE_TYPE").lower(),
             anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
             openai_api_key=os.environ.get("OPENAI_API_KEY", ""),
         )

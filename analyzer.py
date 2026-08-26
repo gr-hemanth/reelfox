@@ -1,17 +1,18 @@
 """Instagram Content Analyzer - command line entry point.
 
-Phase 3 (Instagram Content Extraction). The pipeline is:
+Phase 5 (Audio / Speech Understanding). The pipeline is:
 
     input URL
       -> Phase 2 offline URL validation
       -> if invalid: report and stop
-      -> Phase 3 extraction (yt-dlp) into an isolated temp directory
-      -> structured extraction report
+      -> Phase 3/4 extraction (yt-dlp) into an isolated temp directory
+      -> Phase 5 audio/speech processing (faster-whisper, local, free)
+      -> structured extraction + speech report
       -> temporary media cleaned up (unless --keep-media)
 
-No multimodal analysis (OCR, ASR, vision, LLM) happens here; that is a later
+No multimodal analysis (OCR, vision, LLM) happens here; that is a later
 phase. The only network access in the whole program lives inside the
-extraction layer.
+extraction layer (and one-time model download via HuggingFace Hub).
 
 Usage:
     python analyzer.py "https://www.instagram.com/reel/example/"
@@ -51,7 +52,7 @@ USAGE_HINT = (
     "Run 'python analyzer.py --help' for all options."
 )
 
-FOOTER = "No multimodal analysis is being performed yet."
+FOOTER = "No OCR or vision analysis is being performed yet."
 CAPTION_PREVIEW_CHARS = 500
 
 
@@ -88,6 +89,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--keep-media",
         action="store_true",
         help="Do not delete the downloaded media / temp run directory.",
+    )
+    parser.add_argument(
+        "--skip-speech",
+        action="store_true",
+        help="Skip Phase 5 audio/speech processing.",
     )
     parser.add_argument(
         "--version",
@@ -179,6 +185,67 @@ def report_extraction(result: ExtractionResult, verbose: bool) -> None:
 
     if verbose:
         _print_diagnostics(result)
+
+    print(FOOTER)
+
+
+def report_speech(result) -> None:
+    """Print the Phase 5 speech processing report."""
+    print()
+    print("--- Phase 5: Audio / Speech Understanding ---")
+    print()
+    print(f"Audio present: {'yes' if result.audio_present else 'no'}")
+    print(f"Speech detected: {'yes' if result.speech_present else 'no'}")
+    print(f"Classification: {result.classification}")
+    print()
+
+    if result.detected_language:
+        print(f"Detected language: {result.detected_language}")
+        if result.language_probability is not None:
+            print(f"Language probability: {result.language_probability:.4f}")
+        print()
+
+    if result.transcript:
+        print("Transcript:")
+        preview = result.transcript.strip()
+        if len(preview) > CAPTION_PREVIEW_CHARS:
+            preview = preview[:CAPTION_PREVIEW_CHARS] + " [...]"
+        print(preview)
+        print()
+
+    if result.segments:
+        print(f"Segments: {len(result.segments)}")
+        for seg in result.segments[:5]:
+            print(f"  [{seg.start:.1f}s - {seg.end:.1f}s] {seg.text}")
+        if len(result.segments) > 5:
+            print(f"  ... and {len(result.segments) - 5} more")
+        print()
+
+    # Timing.
+    timings = []
+    if result.audio_extraction_seconds is not None:
+        timings.append(f"audio extraction: {result.audio_extraction_seconds:.3f}s")
+    if result.model_load_seconds is not None:
+        timings.append(f"model load: {result.model_load_seconds:.3f}s")
+    if result.transcription_time_seconds is not None:
+        timings.append(f"transcription: {result.transcription_time_seconds:.3f}s")
+    if result.total_processing_seconds is not None:
+        timings.append(f"total: {result.total_processing_seconds:.3f}s")
+    if timings:
+        print("Speech timing:")
+        for t in timings:
+            print(f"  {t}")
+        print()
+
+    if result.model_name:
+        print(f"ASR model: {result.model_name}")
+        print()
+
+    if not result.success:
+        print(f"Speech failure: {result.failure_category}")
+        if result.failure_message:
+            print(f"  {result.failure_message}")
+        print()
 
     print(FOOTER)
 
@@ -289,6 +356,31 @@ def run(argv: list[str] | None = None) -> int:
     result = extractor.extract(validation, options)
 
     report_extraction(result, verbose=args.verbose)
+
+    # -- Phase 5: speech processing (video only) ---------------------------
+    speech_result = None
+    if (
+        result.success
+        and result.media_path
+        and result.media_type in ("reel", "video")
+        and not args.skip_speech
+    ):
+        from processor.pipeline import process_speech
+
+        speech_result = process_speech(result.media_path)
+        report_speech(speech_result)
+    elif result.success and result.media_type in ("image", "carousel"):
+        print()
+        print("--- Phase 5: Audio / Speech Understanding ---")
+        print("Skipped (media type is not video).")
+        print()
+        print(FOOTER)
+    elif args.skip_speech and result.success:
+        print()
+        print("--- Phase 5: Audio / Speech Understanding ---")
+        print("Skipped (--skip-speech).")
+        print()
+        print(FOOTER)
 
     if not args.keep_media:
         _cleanup_run(settings, result, logger)

@@ -1,6 +1,6 @@
 # Instagram Content Analyzer - dependencies
 #
-# Kept minimal on purpose. No OCR, ASR, vision or LLM libraries yet; those
+# Kept minimal on purpose. No OCR, vision or LLM libraries yet; those
 # arrive in later phases.
 
 # Configuration
@@ -8,6 +8,12 @@ python-dotenv==1.1.1
 
 # Phase 3 - Instagram content extraction (primary extractor)
 yt-dlp==2026.8.19
+
+# Phase 5 - Audio / Speech Understanding (local ASR, ₹0 cost)
+# faster-whisper pulls in: ctranslate2, av (PyAV), onnxruntime,
+# huggingface-hub, tokenizers, numpy, tqdm, pyyaml.
+# av bundles FFmpeg libraries so no system FFmpeg is needed.
+faster-whisper==1.2.1
 
 # Testing
 pytest==9.0.1
