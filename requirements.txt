@@ -1,0 +1,13 @@
+# Instagram Content Analyzer - dependencies
+#
+# Kept minimal on purpose. No OCR, ASR, vision or LLM libraries yet; those
+# arrive in later phases.
+
+# Configuration
+python-dotenv==1.1.1
+
+# Phase 3 - Instagram content extraction (primary extractor)
+yt-dlp==2026.8.19
+
+# Testing
+pytest==9.0.1
