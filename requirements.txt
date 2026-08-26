@@ -1,6 +1,6 @@
 # Instagram Content Analyzer - dependencies
 #
-# Kept minimal on purpose. No OCR, vision or LLM libraries yet; those
+# Kept minimal on purpose. No OCR or LLM synthesis libraries yet; those
 # arrive in later phases.
 
 # Configuration
@@ -14,6 +14,14 @@ yt-dlp==2026.8.19
 # huggingface-hub, tokenizers, numpy, tqdm, pyyaml.
 # av bundles FFmpeg libraries so no system FFmpeg is needed.
 faster-whisper==1.2.1
+
+# Phase 6 - Vision Understanding (local VLM, ₹0 cost)
+torch
+torchvision
+transformers
+pillow
+einops
+accelerate
 
 # Testing
 pytest==9.0.1

@@ -58,8 +58,8 @@ class _FakeExtractor:
 def test_modules_import():
     assert analyzer.__doc__
     assert config.PROJECT_NAME == "Instagram Content Analyzer"
-    assert config.PHASE_NUMBER == 5
-    assert config.PHASE == "Audio / Speech Understanding"
+    assert config.PHASE_NUMBER == 6
+    assert config.PHASE == "Vision Understanding"
 
 
 def test_expected_modules_exist():

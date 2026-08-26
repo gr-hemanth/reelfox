@@ -96,6 +96,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Skip Phase 5 audio/speech processing.",
     )
     parser.add_argument(
+        "--skip-vision",
+        action="store_true",
+        help="Skip Phase 6 vision understanding.",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=(
@@ -250,6 +255,64 @@ def report_speech(result) -> None:
     print(FOOTER)
 
 
+def report_vision(result) -> None:
+    """Print the Phase 6 vision processing report."""
+    print()
+    print("--- Phase 6: Vision Understanding ---")
+    print()
+    print(f"Input type: {result.input_type}")
+    print(f"Frames analyzed: {result.frames_analyzed}")
+    print()
+
+    if result.subjects:
+        print(f"Subjects: {', '.join(result.subjects)}")
+    if result.objects:
+        print(f"Objects: {', '.join(result.objects)}")
+    if result.actions:
+        print(f"Actions: {', '.join(result.actions)}")
+    if result.scenes:
+        print(f"Scenes: {', '.join(result.scenes)}")
+    if result.demonstrations:
+        print(f"Demonstrations: {', '.join(result.demonstrations)}")
+    print()
+
+    if result.frame_observations:
+        print(f"Frame observations ({len(result.frame_observations)}):")
+        for fobs in result.frame_observations[:5]:
+            print(f"  [Frame {fobs.frame_index} @ {fobs.timestamp_seconds:.1f}s] {fobs.description}")
+        if len(result.frame_observations) > 5:
+            print(f"  ... and {len(result.frame_observations) - 5} more")
+        print()
+
+    # Timing
+    timings = []
+    if result.frame_extraction_seconds is not None:
+        timings.append(f"frame extraction: {result.frame_extraction_seconds:.3f}s")
+    if result.model_load_seconds is not None:
+        timings.append(f"model load: {result.model_load_seconds:.3f}s")
+    if result.inference_seconds is not None:
+        timings.append(f"inference: {result.inference_seconds:.3f}s")
+    if result.total_processing_seconds is not None:
+        timings.append(f"total: {result.total_processing_seconds:.3f}s")
+    if timings:
+        print("Vision timing:")
+        for t in timings:
+            print(f"  {t}")
+        print()
+
+    if result.model_name:
+        print(f"Vision model: {result.model_name}")
+        print()
+
+    if not result.success:
+        print(f"Vision failure: {result.failure_category}")
+        if result.failure_message:
+            print(f"  {result.failure_message}")
+        print()
+
+    print(FOOTER)
+
+
 def _print_diagnostics(result: ExtractionResult) -> None:
     """Show extra, already-sanitised diagnostics under --verbose."""
     print("--- diagnostics (sanitised) ---")
@@ -379,6 +442,20 @@ def run(argv: list[str] | None = None) -> int:
         print()
         print("--- Phase 5: Audio / Speech Understanding ---")
         print("Skipped (--skip-speech).")
+        print()
+        print(FOOTER)
+
+    # -- Phase 6: vision processing ---------------------------------------
+    vision_result = None
+    if result.success and result.media_path and not args.skip_vision:
+        from processor.pipeline import process_vision
+
+        vision_result = process_vision(result.media_path)
+        report_vision(vision_result)
+    elif args.skip_vision and result.success:
+        print()
+        print("--- Phase 6: Vision Understanding ---")
+        print("Skipped (--skip-vision).")
         print()
         print(FOOTER)
 

@@ -49,6 +49,17 @@ class SpeechFailureCategory(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
+class VisionFailureCategory(str, Enum):
+    """Machine-readable failure categories for vision processing."""
+
+    MEDIA_NOT_FOUND = "MEDIA_NOT_FOUND"
+    UNSUPPORTED_MEDIA = "UNSUPPORTED_MEDIA"
+    FRAME_EXTRACTION_FAILED = "FRAME_EXTRACTION_FAILED"
+    MODEL_LOAD_FAILED = "MODEL_LOAD_FAILED"
+    VISION_INFERENCE_FAILED = "VISION_INFERENCE_FAILED"
+    UNKNOWN = "UNKNOWN"
+
+
 @dataclass
 class SpeechSegment:
     """One timed fragment of transcribed speech."""
@@ -59,6 +70,30 @@ class SpeechSegment:
 
     def as_dict(self) -> dict[str, Any]:
         return {"start": self.start, "end": self.end, "text": self.text}
+
+
+@dataclass
+class FrameObservation:
+    """Observation for a single image or sampled video frame."""
+
+    frame_index: int
+    timestamp_seconds: float
+    description: str
+    subjects: list[str] = field(default_factory=list)
+    objects: list[str] = field(default_factory=list)
+    actions: list[str] = field(default_factory=list)
+    scenes: list[str] = field(default_factory=list)
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "frame_index": self.frame_index,
+            "timestamp_seconds": self.timestamp_seconds,
+            "description": self.description,
+            "subjects": self.subjects,
+            "objects": self.objects,
+            "actions": self.actions,
+            "scenes": self.scenes,
+        }
 
 
 @dataclass
@@ -134,3 +169,64 @@ class SpeechResult:
             f"FAIL category={self.failure_category} "
             f"message={self.failure_message}"
         )
+
+
+@dataclass
+class VisionResult:
+    """The structured outcome of one vision processing attempt (Phase 6)."""
+
+    success: bool
+    media_path: Optional[str] = None
+    input_type: str = "unknown"  # "image" or "video"
+    frames_analyzed: int = 0
+    subjects: list[str] = field(default_factory=list)
+    objects: list[str] = field(default_factory=list)
+    actions: list[str] = field(default_factory=list)
+    scenes: list[str] = field(default_factory=list)
+    demonstrations: list[str] = field(default_factory=list)
+    observations: list[str] = field(default_factory=list)
+    frame_observations: list[FrameObservation] = field(default_factory=list)
+    model_name: Optional[str] = None
+
+    # Timing
+    frame_extraction_seconds: Optional[float] = None
+    model_load_seconds: Optional[float] = None
+    inference_seconds: Optional[float] = None
+    total_processing_seconds: Optional[float] = None
+
+    # Failure
+    failure_category: Optional[str] = None
+    failure_message: Optional[str] = None
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return a JSON-ready dictionary of the visual understanding result."""
+        return {
+            "success": self.success,
+            "media_path": self.media_path,
+            "input_type": self.input_type,
+            "frames_analyzed": self.frames_analyzed,
+            "subjects": self.subjects,
+            "objects": self.objects,
+            "actions": self.actions,
+            "scenes": self.scenes,
+            "demonstrations": self.demonstrations,
+            "observations": self.observations,
+            "frame_observations": [f.as_dict() for f in self.frame_observations],
+            "model_name": self.model_name,
+            "frame_extraction_seconds": self.frame_extraction_seconds,
+            "model_load_seconds": self.model_load_seconds,
+            "inference_seconds": self.inference_seconds,
+            "total_processing_seconds": self.total_processing_seconds,
+            "failure_category": self.failure_category,
+            "failure_message": self.failure_message,
+        }
+
+    def summary_line(self) -> str:
+        """A single compact line for logs."""
+        if self.success:
+            return (
+                f"OK type={self.input_type} frames={self.frames_analyzed} "
+                f"observations={len(self.observations)} t={self.total_processing_seconds}"
+            )
+        return f"FAIL category={self.failure_category} message={self.failure_message}"
+

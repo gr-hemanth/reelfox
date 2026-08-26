@@ -29,8 +29,8 @@ except ImportError:  # pragma: no cover - dependency is optional at runtime
 BASE_DIR = Path(__file__).resolve().parent
 
 PROJECT_NAME = "Instagram Content Analyzer"
-PHASE = "Audio / Speech Understanding"
-PHASE_NUMBER = 5
+PHASE = "Vision Understanding"
+PHASE_NUMBER = 6
 
 VALID_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
@@ -49,6 +49,10 @@ _DEFAULTS = {
     "ASR_MODEL_SIZE": "base",
     "ASR_DEVICE": "cpu",
     "ASR_COMPUTE_TYPE": "int8",
+    # Phase 6 Vision defaults.
+    "VISION_MODEL": "HuggingFaceTB/SmolVLM-256M-Instruct",
+    "VISION_DEVICE": "auto",
+    "VISION_MAX_FRAMES": "6",
 }
 
 
@@ -92,6 +96,11 @@ class Config:
     asr_device: str = _DEFAULTS["ASR_DEVICE"]
     asr_compute_type: str = _DEFAULTS["ASR_COMPUTE_TYPE"]
 
+    # Phase 6 Vision configuration.
+    vision_model: str = _DEFAULTS["VISION_MODEL"]
+    vision_device: str = _DEFAULTS["VISION_DEVICE"]
+    vision_max_frames: int = int(_DEFAULTS["VISION_MAX_FRAMES"])
+
     # Placeholders for later phases. Empty string means "not configured".
     anthropic_api_key: str = ""
     openai_api_key: str = ""
@@ -113,6 +122,11 @@ class Config:
         cookie_file_raw = os.environ.get("COOKIE_FILE", "").strip()
         cookie_file = str(_resolve(cookie_file_raw)) if cookie_file_raw else ""
 
+        try:
+            max_frames = int(_env("VISION_MAX_FRAMES"))
+        except ValueError:
+            max_frames = 6
+
         return cls(
             output_dir=_resolve(_env("OUTPUT_DIR")),
             temp_dir=_resolve(_env("TEMP_DIR")),
@@ -123,6 +137,9 @@ class Config:
             asr_model_size=_env("ASR_MODEL_SIZE").lower(),
             asr_device=_env("ASR_DEVICE").lower(),
             asr_compute_type=_env("ASR_COMPUTE_TYPE").lower(),
+            vision_model=_env("VISION_MODEL"),
+            vision_device=_env("VISION_DEVICE").lower(),
+            vision_max_frames=max_frames,
             anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
             openai_api_key=os.environ.get("OPENAI_API_KEY", ""),
         )
