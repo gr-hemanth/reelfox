@@ -58,8 +58,10 @@ class _FakeExtractor:
 def test_modules_import():
     assert analyzer.__doc__
     assert config.PROJECT_NAME == "Instagram Content Analyzer"
-    assert config.PHASE_NUMBER == 6
-    assert config.PHASE == "Vision Understanding"
+    assert config.PHASE_NUMBER == 8
+    assert config.PHASE == "Multimodal Synthesis"
+
+
 
 
 def test_expected_modules_exist():
@@ -88,6 +90,18 @@ def test_parser_accepts_optional_url_and_flags():
 
 def test_run_with_valid_url_uses_extractor(monkeypatch, capsys):
     monkeypatch.setattr(analyzer, "YtDlpExtractor", _FakeExtractor)
+    from processor.synthesis_models import MultimodalAnalysisResult
+    monkeypatch.setattr(
+        "processor.pipeline.process_synthesis",
+        lambda *a, **kw: MultimodalAnalysisResult(
+            success=True,
+            summary="Fake summary",
+            key_points=["Fake point"],
+            core_takeaway="Fake takeaway",
+            confidence=0.9,
+            evidence_used={"caption": True, "speech": False, "vision": False, "ocr": False},
+        ),
+    )
     exit_code = analyzer.run([VALID_URL])
     output = capsys.readouterr().out
     assert exit_code == analyzer.EXIT_OK
@@ -96,6 +110,7 @@ def test_run_with_valid_url_uses_extractor(monkeypatch, capsys):
     assert "Media downloaded: PASS" in output
     assert "reel" in output
     assert analyzer.FOOTER in output
+
 
 
 def test_run_with_invalid_url_stops_before_extraction(capsys):
