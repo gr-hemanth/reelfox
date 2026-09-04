@@ -19,6 +19,10 @@ Later phases will add OCR, multimodal synthesis and structured output.
 from processor.frames import sample_frames
 from processor.models import (
     FrameObservation,
+    OCRFailureCategory,
+    OCRFrameResult,
+    OCRResult,
+    OCRTextBlock,
     SpeechClassification,
     SpeechFailureCategory,
     SpeechResult,
@@ -26,8 +30,29 @@ from processor.models import (
     VisionFailureCategory,
     VisionResult,
 )
-from processor.pipeline import process_speech, process_vision
+from processor.ocr import (
+    BaseOCRAnalyzer,
+    LocalOCRAnalyzer,
+    deduplicate_text_blocks,
+    normalize_text,
+)
+from processor.pipeline import (
+    process_ocr,
+    process_speech,
+    process_synthesis,
+    process_vision,
+)
 from processor.speech import BaseSpeechRecognizer, FasterWhisperRecognizer
+from processor.synthesis import (
+    BaseSynthesizer,
+    LocalQwenSynthesizer,
+    TokenRouterGLMSynthesizer,
+)
+from processor.synthesis_models import (
+    MultimodalAnalysisResult,
+    MultimodalEvidence,
+    SynthesisFailureCategory,
+)
 from processor.vision import BaseVisionAnalyzer, LocalVisionAnalyzer
 
 __all__ = [
@@ -40,6 +65,15 @@ __all__ = [
     "VisionResult",
     "FrameObservation",
     "VisionFailureCategory",
+    # Models - OCR
+    "OCRResult",
+    "OCRTextBlock",
+    "OCRFrameResult",
+    "OCRFailureCategory",
+    # Models - Synthesis
+    "MultimodalAnalysisResult",
+    "MultimodalEvidence",
+    "SynthesisFailureCategory",
     # Speech
     "BaseSpeechRecognizer",
     "FasterWhisperRecognizer",
@@ -47,7 +81,20 @@ __all__ = [
     "BaseVisionAnalyzer",
     "LocalVisionAnalyzer",
     "sample_frames",
+    # OCR
+    "BaseOCRAnalyzer",
+    "LocalOCRAnalyzer",
+    "normalize_text",
+    "deduplicate_text_blocks",
+    # Synthesis
+    "BaseSynthesizer",
+    "LocalQwenSynthesizer",
+    "TokenRouterGLMSynthesizer",
     # Pipeline
     "process_speech",
     "process_vision",
+    "process_ocr",
+    "process_synthesis",
 ]
+
+

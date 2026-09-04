@@ -52,7 +52,7 @@ USAGE_HINT = (
     "Run 'python analyzer.py --help' for all options."
 )
 
-FOOTER = "No OCR or vision analysis is being performed yet."
+FOOTER = "Multimodal analysis pipeline complete."
 CAPTION_PREVIEW_CHARS = 500
 
 
@@ -62,14 +62,14 @@ def build_parser() -> argparse.ArgumentParser:
         prog="analyzer.py",
         description=(
             f"{app_config.PROJECT_NAME} - Phase {app_config.PHASE_NUMBER}: "
-            f"{app_config.PHASE}. Validates an Instagram URL, then attempts to "
-            "extract media and metadata with yt-dlp. No multimodal analysis "
-            "is performed yet."
+            f"{app_config.PHASE}. Validates an Instagram URL, extracts media, "
+            "and performs speech, vision, OCR, and multimodal synthesis."
         ),
         epilog=(
             "Examples:\n"
             '  python analyzer.py "https://www.instagram.com/reel/example/"\n'
-            '  python analyzer.py --keep-media "https://www.instagram.com/p/example/"'
+            '  python analyzer.py --ocr-only "https://www.instagram.com/reel/example/"\n'
+            '  python analyzer.py --skip-synthesis "https://www.instagram.com/p/example/"'
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -101,6 +101,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="Skip Phase 6 vision understanding.",
     )
     parser.add_argument(
+        "--skip-ocr",
+        action="store_true",
+        help="Skip Phase 7 OCR processing.",
+    )
+    parser.add_argument(
+        "--ocr-only",
+        action="store_true",
+        help="Run only Phase 7 OCR processing (skip speech, vision, and synthesis).",
+    )
+    parser.add_argument(
+        "--skip-synthesis",
+        action="store_true",
+        help="Skip Phase 8 Multimodal Synthesis.",
+    )
+    parser.add_argument(
+        "--synthesis-only",
+        action="store_true",
+        help="Run extraction and synthesis directly (skip speech, vision, and OCR).",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=(
@@ -109,6 +129,8 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     return parser
+
+
 
 
 def print_header() -> None:
@@ -313,6 +335,117 @@ def report_vision(result) -> None:
     print(FOOTER)
 
 
+def report_ocr(result) -> None:
+    """Print the Phase 7 OCR / on-screen text processing report."""
+    print()
+    print("--- Phase 7: OCR / On-Screen Text ---")
+    print()
+    print("OCR:")
+    print("PASS" if result.success else "FAIL")
+    print()
+    print("Frames analyzed:")
+    print(result.frames_analyzed)
+    print()
+    print("Detected text:")
+    if result.text_blocks:
+        for block in result.text_blocks:
+            ts_str = f" [t={block.timestamp_seconds:.1f}s]" if block.timestamp_seconds is not None else ""
+            conf_str = f" [conf: {block.confidence:.2f}]" if block.confidence is not None else ""
+            print(f"- {block.text}{ts_str}{conf_str}")
+    elif result.success:
+        print("(no visible text detected)")
+    else:
+        print("(unavailable due to OCR error)")
+    print()
+
+    # Timing
+    timings = []
+    if result.frame_extraction_seconds is not None:
+        timings.append(f"frame extraction: {result.frame_extraction_seconds:.3f}s")
+    if result.model_load_seconds is not None:
+        timings.append(f"model load: {result.model_load_seconds:.3f}s")
+    if result.inference_seconds is not None:
+        timings.append(f"inference: {result.inference_seconds:.3f}s")
+    if result.processing_time_seconds is not None:
+        timings.append(f"total: {result.processing_time_seconds:.3f}s")
+    if timings:
+        print("OCR processing time:")
+        for t in timings:
+            print(f"  {t}")
+        print()
+
+    if result.model_name_or_engine:
+        print(f"OCR engine: {result.model_name_or_engine}")
+        print()
+
+    if not result.success:
+        print(f"OCR failure: {result.failure_category}")
+        if result.failure_message:
+            print(f"  {result.failure_message}")
+        print()
+
+    print(FOOTER)
+
+
+def report_synthesis(result) -> None:
+    """Print the Phase 8 Multimodal Synthesis processing report."""
+    print()
+    print("--- Phase 8: Multimodal Synthesis ---")
+    print()
+    print("Synthesis:")
+    print("PASS" if result.success else "FAIL")
+    print()
+    if result.success:
+        print("Summary:")
+        print(result.summary)
+        print()
+        print("Key points:")
+        for point in result.key_points:
+            print(f"- {point}")
+        print()
+        print("Core takeaway:")
+        print(result.core_takeaway)
+        print()
+        if result.relevant_context:
+            print("Relevant context:")
+            print(result.relevant_context)
+            print()
+        print(f"Confidence: {result.confidence:.2f}")
+        print()
+        print("Evidence used:")
+        for src, used in sorted(result.evidence_used.items()):
+            print(f"  {src}: {'true' if used else 'false'}")
+        print()
+        # Metrics
+        metrics = []
+        if result.prompt_tokens is not None:
+            metrics.append(f"prompt tokens: {result.prompt_tokens}")
+        if result.completion_tokens is not None:
+            metrics.append(f"completion tokens: {result.completion_tokens}")
+        if result.total_tokens is not None:
+            metrics.append(f"total tokens: {result.total_tokens}")
+        if result.request_latency_seconds is not None:
+            metrics.append(f"request latency: {result.request_latency_seconds:.3f}s")
+        if result.processing_time_seconds is not None:
+            metrics.append(f"total time: {result.processing_time_seconds:.3f}s")
+        if metrics:
+            print("Synthesis metrics:")
+            for m in metrics:
+                print(f"  {m}")
+            print()
+        if result.model_name:
+            print(f"Synthesis model: {result.model_name}")
+            print()
+    else:
+        print(f"Synthesis failure: {result.failure_category}")
+        if result.failure_message:
+            print(f"  {result.failure_message}")
+        print()
+    print(FOOTER)
+
+
+
+
 def _print_diagnostics(result: ExtractionResult) -> None:
     """Show extra, already-sanitised diagnostics under --verbose."""
     print("--- diagnostics (sanitised) ---")
@@ -418,6 +551,15 @@ def run(argv: list[str] | None = None) -> int:
     extractor = YtDlpExtractor(temp_dir=settings.temp_dir)
     result = extractor.extract(validation, options)
 
+    if args.ocr_only:
+        args.skip_speech = True
+        args.skip_vision = True
+        args.skip_synthesis = True
+    if args.synthesis_only:
+        args.skip_speech = True
+        args.skip_vision = True
+        args.skip_ocr = True
+
     report_extraction(result, verbose=args.verbose)
 
     # -- Phase 5: speech processing (video only) ---------------------------
@@ -432,13 +574,13 @@ def run(argv: list[str] | None = None) -> int:
 
         speech_result = process_speech(result.media_path)
         report_speech(speech_result)
-    elif result.success and result.media_type in ("image", "carousel"):
+    elif result.success and result.media_type in ("image", "carousel") and not (args.ocr_only or args.synthesis_only):
         print()
         print("--- Phase 5: Audio / Speech Understanding ---")
         print("Skipped (media type is not video).")
         print()
         print(FOOTER)
-    elif args.skip_speech and result.success:
+    elif args.skip_speech and result.success and not (args.ocr_only or args.synthesis_only):
         print()
         print("--- Phase 5: Audio / Speech Understanding ---")
         print("Skipped (--skip-speech).")
@@ -452,10 +594,62 @@ def run(argv: list[str] | None = None) -> int:
 
         vision_result = process_vision(result.media_path)
         report_vision(vision_result)
-    elif args.skip_vision and result.success:
+    elif args.skip_vision and result.success and not (args.ocr_only or args.synthesis_only):
         print()
         print("--- Phase 6: Vision Understanding ---")
         print("Skipped (--skip-vision).")
+        print()
+        print(FOOTER)
+
+    # -- Phase 7: OCR / On-Screen Text ------------------------------------
+    ocr_result = None
+    if (
+        result.success
+        and (result.media_path or result.media_files)
+        and not args.skip_ocr
+    ):
+        from processor.pipeline import process_ocr
+
+        if result.media_type == "carousel" and len(result.media_files) > 1:
+            media_input = [m.path for m in result.media_files]
+        else:
+            media_input = result.media_path
+
+        ocr_result = process_ocr(media_input)
+        report_ocr(ocr_result)
+    elif args.skip_ocr and result.success and not args.synthesis_only:
+        print()
+        print("--- Phase 7: OCR / On-Screen Text ---")
+        print("Skipped (--skip-ocr).")
+        print()
+        print(FOOTER)
+
+    # -- Phase 8: Multimodal Synthesis ------------------------------------
+    synthesis_result = None
+    if (
+        result.success
+        and not args.skip_synthesis
+        and settings.synthesis_enabled
+    ):
+        from processor.pipeline import process_synthesis
+
+        synthesis_result = process_synthesis(
+            extraction=result,
+            speech=speech_result,
+            vision=vision_result,
+            ocr=ocr_result,
+        )
+        report_synthesis(synthesis_result)
+    elif args.skip_synthesis and result.success and not args.ocr_only:
+        print()
+        print("--- Phase 8: Multimodal Synthesis ---")
+        print("Skipped (--skip-synthesis).")
+        print()
+        print(FOOTER)
+    elif not settings.synthesis_enabled and result.success and not args.ocr_only:
+        print()
+        print("--- Phase 8: Multimodal Synthesis ---")
+        print("Skipped (synthesis disabled in config).")
         print()
         print(FOOTER)
 
@@ -465,6 +659,7 @@ def run(argv: list[str] | None = None) -> int:
         logger.info("Retained temp run directory run=%s (--keep-media)", result.run_id)
 
     return EXIT_OK if result.success else EXIT_EXTRACTION_FAILED
+
 
 
 def main() -> None:

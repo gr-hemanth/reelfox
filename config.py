@@ -29,8 +29,8 @@ except ImportError:  # pragma: no cover - dependency is optional at runtime
 BASE_DIR = Path(__file__).resolve().parent
 
 PROJECT_NAME = "Instagram Content Analyzer"
-PHASE = "Vision Understanding"
-PHASE_NUMBER = 6
+PHASE = "Multimodal Synthesis"
+PHASE_NUMBER = 8
 
 VALID_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
@@ -53,6 +53,17 @@ _DEFAULTS = {
     "VISION_MODEL": "HuggingFaceTB/SmolVLM-256M-Instruct",
     "VISION_DEVICE": "auto",
     "VISION_MAX_FRAMES": "6",
+    # Phase 7 OCR defaults.
+    "OCR_ENGINE": "rapidocr",
+    "OCR_MAX_FRAMES": "6",
+    # Phase 8 Multimodal Synthesis defaults.
+    "SYNTHESIS_BACKEND": "local",
+    "SYNTHESIS_MODEL": "Qwen/Qwen2.5-3B-Instruct",
+    "SYNTHESIS_DEVICE": "cpu",
+    "TOKENROUTER_API_KEY": "",
+    "SYNTHESIS_ENDPOINT": "https://api.tokenrouter.com/v1/chat/completions",
+    "SYNTHESIS_ENABLED": "true",
+    "SYNTHESIS_TIMEOUT": "60",
 }
 
 
@@ -101,6 +112,19 @@ class Config:
     vision_device: str = _DEFAULTS["VISION_DEVICE"]
     vision_max_frames: int = int(_DEFAULTS["VISION_MAX_FRAMES"])
 
+    # Phase 7 OCR configuration.
+    ocr_engine: str = _DEFAULTS["OCR_ENGINE"]
+    ocr_max_frames: int = int(_DEFAULTS["OCR_MAX_FRAMES"])
+
+    # Phase 8 Multimodal Synthesis configuration.
+    synthesis_backend: str = _DEFAULTS["SYNTHESIS_BACKEND"]
+    synthesis_model: str = _DEFAULTS["SYNTHESIS_MODEL"]
+    synthesis_device: str = _DEFAULTS["SYNTHESIS_DEVICE"]
+    tokenrouter_api_key: str = field(default="", repr=False)
+    synthesis_endpoint: str = _DEFAULTS["SYNTHESIS_ENDPOINT"]
+    synthesis_enabled: bool = True
+    synthesis_timeout: float = 60.0
+
     # Placeholders for later phases. Empty string means "not configured".
     anthropic_api_key: str = ""
     openai_api_key: str = ""
@@ -127,6 +151,19 @@ class Config:
         except ValueError:
             max_frames = 6
 
+        try:
+            ocr_max_frames = int(_env("OCR_MAX_FRAMES"))
+        except ValueError:
+            ocr_max_frames = 6
+
+        synthesis_enabled_raw = _env("SYNTHESIS_ENABLED").lower()
+        synthesis_enabled = synthesis_enabled_raw in ("true", "1", "yes")
+
+        try:
+            synthesis_timeout = float(_env("SYNTHESIS_TIMEOUT"))
+        except ValueError:
+            synthesis_timeout = 60.0
+
         return cls(
             output_dir=_resolve(_env("OUTPUT_DIR")),
             temp_dir=_resolve(_env("TEMP_DIR")),
@@ -140,6 +177,15 @@ class Config:
             vision_model=_env("VISION_MODEL"),
             vision_device=_env("VISION_DEVICE").lower(),
             vision_max_frames=max_frames,
+            ocr_engine=_env("OCR_ENGINE"),
+            ocr_max_frames=ocr_max_frames,
+            synthesis_backend=_env("SYNTHESIS_BACKEND").lower() or _DEFAULTS["SYNTHESIS_BACKEND"],
+            synthesis_model=_env("SYNTHESIS_MODEL") or _DEFAULTS["SYNTHESIS_MODEL"],
+            synthesis_device=_env("SYNTHESIS_DEVICE").lower() or _DEFAULTS["SYNTHESIS_DEVICE"],
+            tokenrouter_api_key=os.environ.get("TOKENROUTER_API_KEY", "").strip(),
+            synthesis_endpoint=_env("SYNTHESIS_ENDPOINT"),
+            synthesis_enabled=synthesis_enabled,
+            synthesis_timeout=synthesis_timeout,
             anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
             openai_api_key=os.environ.get("OPENAI_API_KEY", ""),
         )

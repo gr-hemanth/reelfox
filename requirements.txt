@@ -23,5 +23,12 @@ pillow
 einops
 accelerate
 
+# Phase 7 - OCR / On-Screen Text (local OCR, ₹0 cost)
+rapidocr-onnxruntime==1.2.3
+opencv-python
+pyclipper
+shapely
+
 # Testing
 pytest==9.0.1
+

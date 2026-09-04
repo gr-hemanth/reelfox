@@ -60,6 +60,20 @@ class VisionFailureCategory(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
+class OCRFailureCategory(str, Enum):
+    """Machine-readable failure categories for OCR processing (Phase 7)."""
+
+    OCR_ENGINE_NOT_AVAILABLE = "OCR_ENGINE_NOT_AVAILABLE"
+    OCR_MODEL_LOAD_FAILED = "OCR_MODEL_LOAD_FAILED"
+    OCR_INFERENCE_FAILED = "OCR_INFERENCE_FAILED"
+    FRAME_EXTRACTION_FAILED = "FRAME_EXTRACTION_FAILED"
+    INVALID_MEDIA = "INVALID_MEDIA"
+    NO_TEXT_DETECTED = "NO_TEXT_DETECTED"
+    UNSUPPORTED_MEDIA = "UNSUPPORTED_MEDIA"
+    UNKNOWN = "UNKNOWN"
+
+
+
 @dataclass
 class SpeechSegment:
     """One timed fragment of transcribed speech."""
@@ -229,4 +243,99 @@ class VisionResult:
                 f"observations={len(self.observations)} t={self.total_processing_seconds}"
             )
         return f"FAIL category={self.failure_category} message={self.failure_message}"
+
+
+@dataclass
+class OCRTextBlock:
+    """One piece of text detected in an image or video frame."""
+
+    text: str
+    confidence: Optional[float] = None
+    frame_index: int = 0
+    timestamp_seconds: Optional[float] = None
+    bbox: Optional[list] = None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "text": self.text,
+            "confidence": self.confidence,
+            "frame_index": self.frame_index,
+            "timestamp_seconds": self.timestamp_seconds,
+            "bbox": self.bbox,
+        }
+
+
+@dataclass
+class OCRFrameResult:
+    """OCR detections for a single frame or image."""
+
+    frame_index: int
+    timestamp_seconds: Optional[float] = None
+    text_blocks: list[OCRTextBlock] = field(default_factory=list)
+    frame_text: str = ""
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "frame_index": self.frame_index,
+            "timestamp_seconds": self.timestamp_seconds,
+            "text_blocks": [b.as_dict() for b in self.text_blocks],
+            "frame_text": self.frame_text,
+        }
+
+
+@dataclass
+class OCRResult:
+    """The structured outcome of one OCR processing attempt (Phase 7)."""
+
+    success: bool
+    media_type: str = "unknown"  # "image", "video", "carousel"
+    media_path: Optional[str] = None
+    frames_analyzed: int = 0
+    text_detected: bool = False
+    text_blocks: list[OCRTextBlock] = field(default_factory=list)
+    combined_text: str = ""
+    per_frame_results: list[OCRFrameResult] = field(default_factory=list)
+    model_name_or_engine: Optional[str] = None
+
+    # Timing
+    frame_extraction_seconds: Optional[float] = None
+    model_load_seconds: Optional[float] = None
+    inference_seconds: Optional[float] = None
+    processing_time_seconds: Optional[float] = None
+
+    # Failure
+    failure_category: Optional[str] = None
+    failure_message: Optional[str] = None
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return a JSON-ready dictionary of the OCR result."""
+        return {
+            "success": self.success,
+            "media_type": self.media_type,
+            "media_path": self.media_path,
+            "frames_analyzed": self.frames_analyzed,
+            "text_detected": self.text_detected,
+            "text_blocks": [b.as_dict() for b in self.text_blocks],
+            "combined_text": self.combined_text,
+            "per_frame_results": [f.as_dict() for f in self.per_frame_results],
+            "model_name_or_engine": self.model_name_or_engine,
+            "frame_extraction_seconds": self.frame_extraction_seconds,
+            "model_load_seconds": self.model_load_seconds,
+            "inference_seconds": self.inference_seconds,
+            "processing_time_seconds": self.processing_time_seconds,
+            "failure_category": self.failure_category,
+            "failure_message": self.failure_message,
+        }
+
+    def summary_line(self) -> str:
+        """A single compact line for logs."""
+        if self.success:
+            count = len(self.text_blocks)
+            return (
+                f"OK media_type={self.media_type} frames={self.frames_analyzed} "
+                f"blocks={count} text_len={len(self.combined_text)} "
+                f"t={self.processing_time_seconds}"
+            )
+        return f"FAIL category={self.failure_category} message={self.failure_message}"
+
 
