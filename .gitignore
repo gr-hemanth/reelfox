@@ -76,3 +76,7 @@ logs/
 *~
 .DS_Store
 Thumbs.db
+# ---------------------------------------------------------------------
+# Internal documentation (strictly local, never tracked on GitHub)
+# ---------------------------------------------------------------------
+docs/
