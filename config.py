@@ -29,8 +29,8 @@ except ImportError:  # pragma: no cover - dependency is optional at runtime
 BASE_DIR = Path(__file__).resolve().parent
 
 PROJECT_NAME = "Instagram Content Analyzer"
-PHASE = "Multimodal Synthesis"
-PHASE_NUMBER = 8
+PHASE = "Benchmark Infrastructure"
+PHASE_NUMBER = 9
 
 VALID_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 

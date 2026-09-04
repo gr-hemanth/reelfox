@@ -29,12 +29,68 @@ attributed to a specific step rather than to the pipeline as a whole.
 
 ## Current phase
 
-**Phase 8 — Multimodal Synthesis (Permanent Local Baseline Complete).**
+**Phase 9 — End-to-End Benchmark Infrastructure (Complete).**
 Phases 1 (environment), 2 (URL validation), 3 (content extraction), 4 (authenticated extraction experiment),
-5 (audio / speech understanding), 6 (vision understanding), 7 (OCR / on-screen text), and 8 (multimodal synthesis with permanent local `Qwen/Qwen2.5-3B-Instruct` baseline) are fully implemented and verified at ₹0 cost.
+5 (audio / speech understanding), 6 (vision understanding), 7 (OCR / on-screen text), 8 (multimodal synthesis with permanent local `Qwen/Qwen2.5-3B-Instruct` baseline), and 9 (end-to-end benchmark infrastructure & evaluation harness) are fully implemented and verified at ₹0 cost.
 
 > [!NOTE]
 > Detailed internal architecture records, phase-by-phase design documents, PRDs, and implementation notes reside in the internal `docs/` workspace and are intentionally untracked in version control.
+
+---
+
+## Phase 9 — End-to-End Benchmark Infrastructure
+
+### Objective
+
+Build the machinery required to evaluate the complete pipeline consistently and deterministically across multiple Instagram URLs prior to running the official 20-URL feasibility benchmark.
+
+### What the Benchmark Runner Does
+
+- **CLI Runner**: `python scripts/run_benchmark.py --input benchmark/urls.txt [--ground-truth benchmark/ground_truth.csv]`
+- Validates URLs offline, executes extraction, runs speech/vision/OCR/synthesis, records per-stage metrics, handles clean temporary file deletion, and generates aggregate reports.
+- Writes per-run JSON records to `output/runs/<run_id>.json` (with zero credential or binary media leakage).
+- Compiles aggregate feasibility reports in `output/benchmark_report.json`.
+
+### Stage-Level Metrics Recorded
+
+- **Extraction**: Success, media downloaded, caption extracted, media type, download latency, failure category.
+- **Speech (ASR)**: Audio presence, speech presence, classification, detected language, transcription latency.
+- **Vision (VLM)**: Frames analyzed, model name, frame extraction latency, inference latency.
+- **OCR**: Frames analyzed, text detected, block count, engine name, extraction/inference latency.
+- **Synthesis**: Success, model name, prompt/completion tokens, latency, confidence score.
+- **Cleanup**: Attempted, success, leftover artifact count.
+
+### Ground-Truth Evaluation & Usefulness
+
+- **Distinction Between Pipeline Success and Usefulness**: A mechanically successful run (all stages exited 0) does **not** prove the analysis was factually useful or grounded.
+- **Quality Fields**: `transcript_quality`, `ocr_quality`, `visual_understanding_quality`, `summary_quality`, and `core_takeaway_quality` are `null` by default and populated **only** via human evaluation against actual content.
+- Ground-truth template: `benchmark/ground_truth.example.csv`.
+
+### Official PRD Feasibility Targets
+
+- **Extraction Success**: ≥ 90%
+- **Caption Retrieval**: ≥ 95% (on successfully extracted captions)
+- **Speech Quality**: ≥ 85% qualitative accuracy
+- **OCR Quality**: ≥ 85% qualitative accuracy
+- **Vision Quality**: ≥ 85% qualitative accuracy
+- **Overall Useful Analysis**: ≥ 85% (from manual evaluations)
+- **Cleanup Success**: 100%
+- *Note*: Processing latency is measured during the experiment rather than enforced as a strict pass/fail gate.
+
+### Decision Classification
+
+- **PASS**: All extraction, cleanup, and qualitative AI targets met.
+- **CONDITIONAL PASS**: Qualitative understanding acceptable (≥85%), but extraction problematic (<90%).
+- **FAIL**: Fundamental reliability criteria failed.
+- **PENDING EVALUATION**: Mechanical runs succeeded, awaiting human ground-truth scoring.
+
+### Model-Version Tracking
+
+Every benchmark record deterministically tracks the exact model baseline used:
+- ASR: `faster-whisper base (CPU int8)`
+- Vision: `HuggingFaceTB/SmolVLM-256M-Instruct`
+- OCR: `RapidOCR PP-OCRv4 ONNX`
+- Synthesis: `Qwen/Qwen2.5-3B-Instruct (CPU bfloat16)`
 
 ---
 
@@ -468,16 +524,22 @@ python analyzer.py --keep-media "<url>"       # retain downloaded media
 ├── requirements.txt
 ├── .env.example
 ├── README.md
+├── benchmark/                 # Phase 9: benchmark templates & ground truth
+│   ├── urls.example.txt       # template list of benchmark URLs
+│   └── ground_truth.example.csv # manual evaluation schema
 ├── extractor/                 # Phase 2 validation + Phase 3/4 extraction
 │   ├── url_validator.py       # Phase 2: offline URL validation
 │   ├── instagram_extractor.py # Phase 3: yt-dlp extraction backend
 │   ├── models.py              # ExtractionResult, media/mode enums
 │   ├── errors.py              # FailureCategory, ExtractionError
 │   └── artifacts.py           # per-run temp directory manager
-├── processor/                 # Phase 5 (Speech), Phase 6 (Vision), Phase 7 (OCR), Phase 8 (Synthesis)
+├── processor/                 # Phase 5 (Speech), Phase 6 (Vision), Phase 7 (OCR), Phase 8 (Synthesis), Phase 9 (Benchmark)
 │   ├── __init__.py
 │   ├── models.py              # SpeechResult, VisionResult, OCRResult, OCRTextBlock
 │   ├── synthesis_models.py    # MultimodalEvidence, MultimodalAnalysisResult, SynthesisFailureCategory
+│   ├── run_result.py          # Phase 9: RunResult dataclass & run_pipeline()
+│   ├── output.py              # Phase 9: dedicated run JSON writer & secret scrubber
+│   ├── benchmark.py           # Phase 9: BenchmarkRecord, PRD targets & evaluation logic
 │   ├── audio.py               # audio extraction (PyAV)
 │   ├── speech.py              # ASR abstraction + faster-whisper backend
 │   ├── frames.py              # keyframe sampler (PyAV)
@@ -486,6 +548,7 @@ python analyzer.py --keep-media "<url>"       # retain downloaded media
 │   ├── synthesis.py           # Synthesis abstraction + Local Qwen backend (GLM fallback)
 │   └── pipeline.py            # process_speech(), process_vision(), process_ocr(), process_synthesis()
 ├── scripts/
+│   ├── run_benchmark.py       # Phase 9: end-to-end benchmark runner
 │   ├── test_extraction.py     # live extraction runner
 │   ├── test_audio.py          # live ASR runner
 │   ├── test_vision.py         # live Vision runner
@@ -500,17 +563,19 @@ python analyzer.py --keep-media "<url>"       # retain downloaded media
     ├── test_speech.py         # speech unit tests (offline)
     ├── test_vision.py         # vision unit tests (offline)
     ├── test_ocr.py            # OCR unit tests (offline)
-    └── test_synthesis.py      # synthesis unit tests (offline)
+    ├── test_synthesis.py      # synthesis unit tests (offline)
+    └── test_benchmark.py      # Phase 9: benchmark infrastructure unit tests (offline)
 ```
 
 ## Status
 
-Phases 1 (environment), 2 (URL validation), 3 (content extraction), 4 (authenticated extraction), 5 (audio / speech understanding), 6 (vision understanding), 7 (OCR / on-screen text), and 8 (multimodal synthesis with permanent local Qwen baseline) are **complete**.
+Phases 1 (environment), 2 (URL validation), 3 (content extraction), 4 (authenticated extraction), 5 (audio / speech understanding), 6 (vision understanding), 7 (OCR / on-screen text), 8 (multimodal synthesis with permanent local Qwen baseline), and 9 (end-to-end benchmark infrastructure) are **complete**.
 
 - **Speech**: Local ASR (`faster-whisper` base) extracts & transcribes audio at ₹0 cost.
 - **Vision**: Local VLM (`SmolVLM-256M-Instruct`) samples & understands keyframes at ₹0 cost.
 - **OCR**: Local OCR (`RapidOCR` / PP-OCRv4 ONNX) detects & reads on-screen text/subtitles with bounding boxes & confidence at ₹0 cost.
 - **Synthesis**: Local Multimodal synthesis (`Qwen/Qwen2.5-3B-Instruct` permanent baseline, GLM fallback) grounds metadata, speech, vision, and OCR evidence into structured JSON at ₹0 cost.
-- **Remaining**: Phase 9+ (evaluation preparation, 20-URL benchmark, database, Telegram bot) has not been started.
+- **Benchmark Infrastructure**: Automated runner, run-level schemas, stage metrics, ground-truth format, and PRD feasibility decision logic are implemented.
+- **Remaining**: Phase 10/11 (20-URL feasibility benchmark execution & human ground-truth evaluation), followed by product development (Telegram bot, database, search).
 
 

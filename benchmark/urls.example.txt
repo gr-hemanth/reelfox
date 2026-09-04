@@ -1,0 +1,23 @@
+# =====================================================================
+# Reelfox Benchmark URL List Template (Phase 9)
+#
+# Instructions:
+# - Lines starting with '#' and blank lines are ignored.
+# - Provide one public Instagram URL per line.
+# - Do NOT commit real private session URLs or credentials.
+# =====================================================================
+
+# T01 - Audio-heavy tech interview Reel
+https://www.instagram.com/reel/example_audio_heavy_01/
+
+# T02 - Text-heavy slide / infographic carousel
+https://www.instagram.com/p/example_text_heavy_02/
+
+# T03 - Visual demonstration / workflow Reel
+https://www.instagram.com/reel/example_visual_demo_03/
+
+# T04 - Code walkthrough / burned-in subtitles Reel
+https://www.instagram.com/reel/example_code_slide_04/
+
+# T05 - Single image post with rich caption
+https://www.instagram.com/p/example_single_image_05/

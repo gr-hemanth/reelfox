@@ -58,8 +58,8 @@ class _FakeExtractor:
 def test_modules_import():
     assert analyzer.__doc__
     assert config.PROJECT_NAME == "Instagram Content Analyzer"
-    assert config.PHASE_NUMBER == 8
-    assert config.PHASE == "Multimodal Synthesis"
+    assert config.PHASE_NUMBER == 9
+    assert config.PHASE == "Benchmark Infrastructure"
 
 
 

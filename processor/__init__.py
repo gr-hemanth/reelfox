@@ -42,6 +42,15 @@ from processor.pipeline import (
     process_synthesis,
     process_vision,
 )
+from processor.benchmark import (
+    BenchmarkDecision,
+    BenchmarkEvaluation,
+    BenchmarkRecord,
+    evaluate_benchmark,
+    load_ground_truth,
+)
+from processor.output import sanitize_dict_for_output, save_run_result
+from processor.run_result import RunResult, build_stage_metrics, run_pipeline
 from processor.speech import BaseSpeechRecognizer, FasterWhisperRecognizer
 from processor.synthesis import (
     BaseSynthesizer,
@@ -74,6 +83,17 @@ __all__ = [
     "MultimodalAnalysisResult",
     "MultimodalEvidence",
     "SynthesisFailureCategory",
+    # Phase 9 Benchmark & Run Result
+    "RunResult",
+    "run_pipeline",
+    "build_stage_metrics",
+    "save_run_result",
+    "sanitize_dict_for_output",
+    "BenchmarkRecord",
+    "BenchmarkEvaluation",
+    "BenchmarkDecision",
+    "evaluate_benchmark",
+    "load_ground_truth",
     # Speech
     "BaseSpeechRecognizer",
     "FasterWhisperRecognizer",
